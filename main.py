@@ -46,7 +46,8 @@ options = PoseLandmarkerOptions(
 cap = cv2.VideoCapture(0)
 
 with PoseLandmarker.create_from_options(options) as landmarker:
-  # The landmarker is initialized. Use it here.
+  punchCount = 0
+  
   while True:
     ret, frame = cap.read()
     frame = cv2.flip(frame, 1)
@@ -62,7 +63,8 @@ with PoseLandmarker.create_from_options(options) as landmarker:
 
     if latest_result and latest_result.pose_landmarks:
         landmarks = latest_result.pose_landmarks[0]
-        
+
+        # Print lines between the landmarks
         for connection in POSE_CONNECTIONS:
             start_idx, end_idx = connection
             start = landmarks[start_idx]
@@ -73,10 +75,19 @@ with PoseLandmarker.create_from_options(options) as landmarker:
 
             cv2.line(frame, start_point, end_point, (255, 255, 255), 2)
 
+        # Print landmarks
         for landmark in latest_result.pose_landmarks[0]:
             x = int(landmark.x * frame.shape[1])
             y = int(landmark.y * frame.shape[0])
             cv2.circle(frame, (x, y), 4, (0, 255, 0), -1)
+
+    # Print punch count
+    position = (100, 300)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale = 10
+    color = (255, 255, 255)
+    thickness = 12
+    cv2.putText(frame, str(punchCount), position, font, fontScale, color, thickness)
 
     cv2.imshow('frame', frame)
 
@@ -85,5 +96,3 @@ with PoseLandmarker.create_from_options(options) as landmarker:
 
   cap.release() 
   cv2.destroyAllWindows()
-
-    
