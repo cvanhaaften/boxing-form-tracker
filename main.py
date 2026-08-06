@@ -97,29 +97,39 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         right_wrist = latest_result.pose_landmarks[0][16]
         right_elbow = latest_result.pose_landmarks[0][14]
         right_shoulder = latest_result.pose_landmarks[0][12]
-
         nose = latest_result.pose_landmarks[0][0]
-        left_ear = latest_result.pose_landmarks[0][7]
-        right_ear = latest_result.pose_landmarks[0][8]
+        mouth = latest_result.pose_landmarks[0][10]
 
-        #check for straight punches
+        # Get arm angle
         right_angle = angle_between((right_wrist.x, right_wrist.y), (right_elbow.x, right_elbow.y),
          (right_shoulder.x, right_shoulder.y))
         left_angle = angle_between((left_wrist.x, left_wrist.y), (left_elbow.x, left_elbow.y),
          (left_shoulder.x, left_shoulder.y))
-         
-        if(left_angle < 45 and right_angle < 45 and left_wrist.x > nose.x and right_wrist.x < nose.x):
+        
+
+        # Check if back to starting position
+        if(left_angle < 45 and right_angle < 45 and left_wrist.x > nose.x and right_wrist.x < nose.x
+            and left_wrist.y - right_wrist.y < 0.1):
             reset = True
         
-        if(((left_angle > 140) or (right_angle > 140)) and reset):
+        # Check for straight punch
+        elif(((left_angle > 140) or (right_angle > 140)) and reset):
             punch_count += 1
             reset = False
-
-        if((left_wrist.x < nose.x or right_wrist.x > nose.x) and reset):
+       
+        # Check for hook
+        elif((left_wrist.x < nose.x or right_wrist.x > nose.x) 
+            and (left_elbow.y - left_wrist.y < 0.1 or right_elbow.y - right_wrist.y > 0.1) and reset):
+            punch_count += 1
+            reset = False
+        
+        # Check for uppercut (needs fixing is kind of buggy)
+        elif((left_wrist.y < mouth.y or right_wrist.y < mouth.y) and reset):
             punch_count += 1
             reset = False
 
         
+
 
 
     # Print punch count
