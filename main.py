@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import time
+import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
@@ -9,6 +10,7 @@ PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 PoseLandmarkerResult = mp.tasks.vision.PoseLandmarkerResult
 VisionRunningMode = mp.tasks.vision.RunningMode
+
 POSE_CONNECTIONS = frozenset([
     # face
     (0, 1), (1, 2), (2, 3), (3, 7), (0, 4), (4, 5), (5, 6), (6, 8),
@@ -29,12 +31,16 @@ model_path = 'pose_landmarker.task'
 latest_result = None
 
 # Create a pose landmarker instance with the live stream mode:
-#def print_result(result: PoseLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
-    #print('pose landmarker result: {}'.format(result))
-
 def print_result(result: PoseLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
     global latest_result
     latest_result = result
+
+def angle_between(a, b, c):
+    # b is the vertex
+    ba = np.array(a) - np.array(b)
+    bc = np.array(c) - np.array(b)
+    cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    return np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
 
 options = PoseLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
@@ -45,8 +51,11 @@ options = PoseLandmarkerOptions(
 #Open the webcamera
 cap = cv2.VideoCapture(0)
 
+# Punch position
+reset = False
+
 with PoseLandmarker.create_from_options(options) as landmarker:
-  punchCount = 0
+  punch_count = 0
   
   while True:
     ret, frame = cap.read()
@@ -81,13 +90,41 @@ with PoseLandmarker.create_from_options(options) as landmarker:
             y = int(landmark.y * frame.shape[0])
             cv2.circle(frame, (x, y), 4, (0, 255, 0), -1)
 
+        #Essential landmarks for punch tracking
+        left_wrist = latest_result.pose_landmarks[0][15]
+        left_elbow = latest_result.pose_landmarks[0][13]
+        left_shoulder = latest_result.pose_landmarks[0][11]
+
+        right_wrist = latest_result.pose_landmarks[0][16]
+        right_elbow = latest_result.pose_landmarks[0][14]
+        right_shoulder = latest_result.pose_landmarks[0][12]
+
+        # needed?
+        left_hip = latest_result.pose_landmarks[0][23]
+        right_hip = latest_result.pose_landmarks[0][24]
+
+        #check for straight punches
+        right_angle = angle_between((right_wrist.x, right_wrist.y), (right_elbow.x, right_elbow.y),
+         (right_shoulder.x, right_shoulder.y))
+        left_angle = angle_between((left_wrist.x, left_wrist.y), (left_elbow.x, left_elbow.y),
+         (left_shoulder.x, left_shoulder.y))
+         
+        if(left_angle < 45 and right_angle < 45):
+            reset = True
+        
+        
+        if(((left_angle > 140) or (right_angle > 140)) and reset):
+            punch_count += 1
+            reset = False
+
+
     # Print punch count
     position = (100, 300)
-    font = cv2.FONT_HERSHEY_SIMPLEX
+    font = cv2.FONT_HERSHEY_COMPLEX
     fontScale = 10
     color = (255, 255, 255)
-    thickness = 12
-    cv2.putText(frame, str(punchCount), position, font, fontScale, color, thickness)
+    thickness = 6
+    cv2.putText(frame, str(punch_count), position, font, fontScale, color, thickness)
 
     cv2.imshow('frame', frame)
 
