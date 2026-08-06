@@ -94,14 +94,13 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         left_wrist = latest_result.pose_landmarks[0][15]
         left_elbow = latest_result.pose_landmarks[0][13]
         left_shoulder = latest_result.pose_landmarks[0][11]
-
         right_wrist = latest_result.pose_landmarks[0][16]
         right_elbow = latest_result.pose_landmarks[0][14]
         right_shoulder = latest_result.pose_landmarks[0][12]
 
-        # needed?
-        left_hip = latest_result.pose_landmarks[0][23]
-        right_hip = latest_result.pose_landmarks[0][24]
+        nose = latest_result.pose_landmarks[0][0]
+        left_ear = latest_result.pose_landmarks[0][7]
+        right_ear = latest_result.pose_landmarks[0][8]
 
         #check for straight punches
         right_angle = angle_between((right_wrist.x, right_wrist.y), (right_elbow.x, right_elbow.y),
@@ -109,13 +108,18 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         left_angle = angle_between((left_wrist.x, left_wrist.y), (left_elbow.x, left_elbow.y),
          (left_shoulder.x, left_shoulder.y))
          
-        if(left_angle < 45 and right_angle < 45):
+        if(left_angle < 45 and right_angle < 45 and left_wrist.x > nose.x and right_wrist.x < nose.x):
             reset = True
-        
         
         if(((left_angle > 140) or (right_angle > 140)) and reset):
             punch_count += 1
             reset = False
+
+        if((left_wrist.x < nose.x or right_wrist.x > nose.x) and reset):
+            punch_count += 1
+            reset = False
+
+        
 
 
     # Print punch count
